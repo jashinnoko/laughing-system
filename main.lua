@@ -1,122 +1,78 @@
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
+local runService = game:GetService("RunService")
 
 -- 通知
 game:GetService("StarterGui"):SetCore("SendNotification", {
-	Title = "管理者パネル v6",
-	Text = "自動キャッチ＆放り投げモード",
+	Title = "ステルス潜伏モード",
+	Text = "アバターを地底に隠しました",
 	Duration = 5
 })
 
-if game.CoreGui:FindFirstChild("AdminListGuiV6") then
-	game.CoreGui.AdminListGuiV6:Destroy()
+-- UI削除
+if game.CoreGui:FindFirstChild("StealthGui") then
+	game.CoreGui.StealthGui:Destroy()
 end
 
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "AdminListGuiV6"
+screenGui.Name = "StealthGui"
 screenGui.Parent = game.CoreGui
 
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 220, 0, 300)
-frame.Position = UDim2.new(0.5, -110, 0.5, -150)
-frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-frame.Draggable = true
-frame.Active = true
-frame.Parent = screenGui
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0, 160, 0, 45)
+button.Position = UDim2.new(0.05, 0, 0.1, 0)
+button.BackgroundColor3 = Color3.fromRGB(0, 50, 100)
+button.Text = "地底潜伏: OFF"
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.Draggable = true
+button.Parent = screenGui
 
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 35)
-title.BackgroundColor3 = Color3.fromRGB(80, 0, 0)
-title.Text = "Sky Drop Panel"
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.TextScaled = true
-title.Parent = frame
+local isStealth = false
+local offset = Vector3.new(0, -20, 0) -- 地下20メートルに隠す設定
 
-local scroll = Instance.new("ScrollingFrame")
-scroll.Size = UDim2.new(1, -10, 1, -45)
-scroll.Position = UDim2.new(0, 5, 0, 40)
-scroll.BackgroundTransparency = 1
-scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-scroll.ScrollBarThickness = 5
-scroll.Parent = frame
-
-local layout = Instance.new("UIListLayout")
-layout.Parent = scroll
-layout.Padding = UDim.new(0, 5)
-
--- 【重要】自動で掴んで空へ運ぶ関数
-local function skyDropPlayer(targetPlayer)
-	local myChar = player.Character
-	local myHum = myChar:FindFirstChild("Humanoid")
-	
-	if myHum and myHum.SeatPart and targetPlayer.Character then
-		local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
-		local vehicle = myHum.SeatPart.Parent
-		local vehicleRoot = vehicle:FindFirstChild("HumanoidRootPart") or myHum.SeatPart
-
-		if vehicleRoot and targetRoot then
-			local oldPos = vehicleRoot.CFrame
-			
-			-- 1. 相手の目の前へワープ
-			vehicleRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 2, 4)
-			
-			-- 2. 【自動掴み】ゲーム内の「掴むイベント」を直接呼び出す試み
-			-- 注：リモートイベント名は推測です。動作しない場合は手動でボタンを押してください。
-			local grabEvent = vehicle:FindFirstChild("RemoteEvent") or vehicle:FindFirstChild("Click")
-			if grabEvent then
-				if grabEvent:IsA("RemoteEvent") then
-					grabEvent:FireServer("Grab") -- イベント形式
-				elseif grabEvent:IsA("ClickDetector") then
-					fireclickdetector(grabEvent) -- クリック形式
+-- 地底に固定し続けるループ
+runService.RenderStepped:Connect(function()
+	if isStealth then
+		local char = player.Character
+		if char then
+			-- HumanoidRootPart（本体の芯）以外の全てのパーツを下にずらす
+			for _, part in pairs(char:GetDescendants()) do
+				if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+					part.CFrame = char.HumanoidRootPart.CFrame * CFrame.new(offset)
+				elseif part:IsA("Decal") then
+					part.Transparency = 1 -- 顔なども消す
 				end
 			end
-			
-			-- 掴むための猶予
-			task.wait(0.5)
-			
-			-- 3. 上空500メートルへ急上昇！
-			vehicleRoot.CFrame = vehicleRoot.CFrame * CFrame.new(0, 500, 0)
-			
-			task.wait(0.5)
-			
-			-- 4. 相手を離す（放り投げる）
-			-- ここでもう一度イベントを呼んで「離す」動作をさせるか、
-			-- もしくは自分が人形から降りることで相手を置き去りにします
-			myHum.Jump = true -- 人形から降りる
-			
-			task.wait(1)
-			
-			-- 5. 自分だけ元の場所に戻る
-			myChar.HumanoidRootPart.CFrame = oldPos
+			-- 名前を隠す
+			if char:FindFirstChild("Humanoid") then
+				char.Humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+			end
 		end
+	end
+end)
+
+button.MouseButton1Click:Connect(function()
+	isStealth = not isStealth
+	if isStealth then
+		button.Text = "地底潜伏: ON"
+		button.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
 	else
-		game:GetService("StarterGui"):SetCore("SendNotification", {
-			Title = "エラー",
-			Text = "人形に乗ってから選んでください",
-			Duration = 3
-		})
-	end
-end
-
-local function refreshList()
-	for _, child in pairs(scroll:GetChildren()) do
-		if child:IsA("TextButton") then child:Destroy() end
-	end
-	for _, p in pairs(Players:GetPlayers()) do
-		if p ~= player then
-			local btn = Instance.new("TextButton")
-			btn.Size = UDim2.new(1, -10, 0, 30)
-			btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-			btn.Text = p.DisplayName
-			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-			btn.TextScaled = true
-			btn.Parent = scroll
-			btn.MouseButton1Click:Connect(function() skyDropPlayer(p) end)
+		button.Text = "地底潜伏: OFF"
+		button.BackgroundColor3 = Color3.fromRGB(0, 50, 100)
+		-- 元に戻す
+		local char = player.Character
+		if char then
+			for _, part in pairs(char:GetDescendants()) do
+				if part:IsA("BasePart") then
+					part.Transparency = 0 -- 念のため
+				end
+			end
+			if char:FindFirstChild("Humanoid") then
+				char.Humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.Viewer
+			end
 		end
 	end
-	scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y)
-end
+end)
 
-refreshList()
-Players.PlayerAdded:Connect(refreshList)
-Players.PlayerRemoving:Connect(refreshList)
+-- 前回までの「リストから選んでワープ」の機能も合体させたい場合は、
+-- この下に前回の「skyDropPlayer」などの関数を追加してください。
