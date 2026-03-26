@@ -1,98 +1,110 @@
--- Admin Bring Panel (Custom for Giant Doll)
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
--- 通知を表示
+-- 通知
 game:GetService("StarterGui"):SetCore("SendNotification", {
-	Title = "管理者パネル起動",
-	Text = "巨人の人形を装備して名前を入力！",
+	Title = "管理者パネル v5",
+	Text = "リストからターゲットを選んでください",
 	Duration = 5
 })
 
--- UI作成 (Gensparkのデザインをベースに調整)
-if game.CoreGui:FindFirstChild("AdminBringGui") then
-	game.CoreGui.AdminBringGui:Destroy()
+-- UI削除（重複防止）
+if game.CoreGui:FindFirstChild("AdminListGui") then
+	game.CoreGui.AdminListGui:Destroy()
 end
 
+-- メインGUI作成
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "AdminBringGui"
+screenGui.Name = "AdminListGui"
 screenGui.Parent = game.CoreGui
 
+-- メインフレーム
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 260, 0, 140)
-frame.Position = UDim2.new(0.5, -130, 0.5, -70)
-frame.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+frame.Size = UDim2.new(0, 220, 0, 300)
+frame.Position = UDim2.new(0.5, -110, 0.5, -150)
+frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 frame.BorderSizePixel = 0
 frame.Active = true
 frame.Draggable = true
 frame.Parent = screenGui
 
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 30)
-title.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
-title.Text = "Admin Bring Panel"
+title.Size = UDim2.new(1, 0, 0, 35)
+title.BackgroundColor3 = Color3.fromRGB(45, 45, 65)
+title.Text = "Player Select (Bring)"
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
 title.TextScaled = true
 title.Parent = frame
 
-local targetBox = Instance.new("TextBox")
-targetBox.Size = UDim2.new(1, -20, 0, 35)
-targetBox.Position = UDim2.new(0, 10, 0, 45)
-targetBox.BackgroundColor3 = Color3.fromRGB(60, 60, 75)
-targetBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-targetBox.PlaceholderText = "相手の名前を入力"
-targetBox.Text = ""
-targetBox.TextScaled = true
-targetBox.Parent = frame
+-- スクロールエリア
+local scroll = Instance.new("ScrollingFrame")
+scroll.Size = UDim2.new(1, -10, 1, -45)
+scroll.Position = UDim2.new(0, 5, 0, 40)
+scroll.BackgroundTransparency = 1
+scroll.CanvasSize = UDim2.new(0, 0, 0, 0) -- 自動調整
+scroll.ScrollBarThickness = 5
+scroll.Parent = frame
 
-local bringButton = Instance.new("TextButton")
-bringButton.Size = UDim2.new(1, -20, 0, 35)
-bringButton.Position = UDim2.new(0, 10, 0, 85)
-bringButton.BackgroundColor3 = Color3.fromRGB(70, 120, 255)
-bringButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-bringButton.Text = "連れてくる (Bring)"
-bringButton.TextScaled = true
-bringButton.Parent = frame
+local layout = Instance.new("UIListLayout")
+layout.Parent = scroll
+layout.Padding = UDim.new(0, 5)
 
--- 実際に連れてくる処理 (ワープ道連れ方式)
-bringButton.MouseButton1Click:Connect(function()
-	local targetName = targetBox.Text:lower()
-	local targetPlayer = nil
+-- ターゲットを連れてくる関数
+local function bringPlayer(targetPlayer)
+	local myChar = player.Character
+	local myHum = myChar:FindFirstChild("Humanoid")
 	
-	-- プレイヤーを探す（名前の一部でもOK）
-	for _, p in pairs(Players:GetPlayers()) do
-		if p ~= player and (p.Name:lower():find(targetName) or p.DisplayName:lower():find(targetName)) then
-			targetPlayer = p
-			break
-		end
-	end
-
-	if targetPlayer and targetPlayer.Character then
-		local myChar = player.Character
-		local myRoot = myChar:FindFirstChild("HumanoidRootPart")
+	if myHum and myHum.SeatPart and targetPlayer.Character then
 		local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
-		local tool = myChar:FindFirstChild("巨人の人形")
+		-- 操縦している巨人の人形の本体（または座席）
+		local vehicleRoot = myHum.SeatPart.Parent:FindFirstChild("HumanoidRootPart") or myHum.SeatPart
 
-		if myRoot and targetRoot and tool then
-			local oldCFrame = myRoot.CFrame
+		if vehicleRoot and targetRoot then
+			local oldPos = vehicleRoot.CFrame
 			
 			-- 1. 相手の目の前へワープ
-			myRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 2)
-			task.wait(0.1)
+			vehicleRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 5, 5)
 			
-			-- 2. 巨人の人形で掴む
-			tool:Activate()
-			task.wait(0.2)
+			-- 2. 掴むための待機（この間に手動でボタンを押す！）
+			task.wait(1.5)
 			
-			-- 3. 元の場所へ戻る（相手を道連れにする）
-			myRoot.CFrame = oldCFrame
-		else
-			-- 失敗時の通知
-			game:GetService("StarterGui"):SetCore("SendNotification", {
-				Title = "エラー",
-				Text = "巨人の人形を手に持ってください！",
-				Duration = 3
-			})
+			-- 3. 元の場所へ戻る（道連れ）
+			vehicleRoot.CFrame = oldPos
+		end
+	else
+		game:GetService("StarterGui"):SetCore("SendNotification", {
+			Title = "エラー",
+			Text = "巨人の人形に乗ってから選んでください",
+			Duration = 3
+		})
+	end
+end
+
+-- プレイヤーリストの更新関数
+local function refreshList()
+	for _, child in pairs(scroll:GetChildren()) do
+		if child:IsA("TextButton") then child:Destroy() end
+	end
+	
+	for _, p in pairs(Players:GetPlayers()) do
+		if p ~= player then
+			local btn = Instance.new("TextButton")
+			btn.Size = UDim2.new(1, -10, 0, 30)
+			btn.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
+			btn.Text = p.DisplayName .. " (@" .. p.Name .. ")"
+			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+			btn.TextScaled = true
+			btn.Parent = scroll
+			
+			btn.MouseButton1Click:Connect(function()
+				bringPlayer(p)
+			end)
 		end
 	end
-end)
+	scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y)
+end
+
+-- 初回更新とプレイヤー入退室時の更新
+refreshList()
+Players.PlayerAdded:Connect(refreshList)
+Players.PlayerRemoving:Connect(refreshList)
