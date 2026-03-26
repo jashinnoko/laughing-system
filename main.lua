@@ -1,71 +1,62 @@
 local player = game.Players.LocalPlayer
-local runService = game:GetService("RunService")
-local noclipEnabled = false
-local noclipConnection
+local mouse = player:GetMouse()
 
 -- 通知
 game:GetService("StarterGui"):SetCore("SendNotification", {
-    Title = "壁すり抜けシステム",
-    Text = "準備完了！ボタンで切り替えてください",
+    Title = "遠隔掴みシステム",
+    Text = "クリックした相手を掴みに行きます",
     Duration = 5
 })
 
--- 壁すり抜けを実行する関数
-local function doNoclip()
-    local char = player.Character
-    if char and noclipEnabled then
-        for _, part in pairs(char:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = false -- 当たり判定をオフにする
-            end
+-- 遠隔で掴むためのメイン関数
+local function remoteGrab()
+    local target = mouse.Target
+    if target and target.Parent:FindFirstChild("Humanoid") then
+        local targetChar = target.Parent
+        local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
+        local myChar = player.Character
+        local tool = myChar:FindFirstChild("巨人の人形") or player.Backpack:FindFirstChild("巨人の人形")
+
+        if targetRoot and tool then
+            -- 1. 一瞬だけ相手の目の前にワープする
+            local oldCFrame = myChar.HumanoidRootPart.CFrame
+            myChar.HumanoidRootPart.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 3)
+            
+            -- 2. 人形を装備して使う（掴む判定を出す）
+            tool.Parent = myChar
+            tool:Activate()
+            
+            -- 3. ほんの少し待ってから元の場所に戻る
+            task.wait(0.1)
+            myChar.HumanoidRootPart.CFrame = oldCFrame
         end
     end
 end
 
--- UI作成
-if game.CoreGui:FindFirstChild("NoclipGui") then
-    game.CoreGui.NoclipGui:Destroy()
-end
-
+-- 画面に「遠隔掴みモード」の切り替えボタンを作成
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "NoclipGui"
+screenGui.Name = "GrabGui"
 screenGui.Parent = game.CoreGui
 
 local button = Instance.new("TextButton")
-button.Parent = screenGui
-button.Size = UDim2.new(0, 140, 0, 45)
-button.Position = UDim2.new(0.05, 0, 0.3, 0) -- 透明化ボタンより少し上に配置
-button.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-button.BorderSizePixel = 2
+button.Size = UDim2.new(0, 150, 0, 50)
+button.Position = UDim2.new(0.05, 0, 0.2, 0)
+button.BackgroundColor3 = Color3.fromRGB(100, 0, 150) -- 紫色
+button.Text = "遠隔掴み：OFF"
 button.TextColor3 = Color3.fromRGB(255, 255, 255)
-button.Text = "壁抜け: OFF"
 button.Draggable = true
+button.Parent = screenGui
 
--- ボタンクリック時の処理
+local enabled = false
 button.MouseButton1Click:Connect(function()
-    noclipEnabled = not noclipEnabled
-    
-    if noclipEnabled then
-        button.Text = "壁抜け: ON"
-        button.BackgroundColor3 = Color3.fromRGB(0, 180, 0) -- ONは緑
-        -- 常に判定をオフにし続けるループを開始
-        noclipConnection = runService.Stepped:Connect(doNoclip)
-    else
-        button.Text = "壁抜け: OFF"
-        button.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-        -- ループを止める
-        if noclipConnection then
-            noclipConnection:Disconnect()
-            noclipConnection = nil
-        end
-        -- 当たり判定を元に戻す（リセット用）
-        local char = player.Character
-        if char then
-            for _, part in pairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = true
-                end
-            end
-        end
+    enabled = not enabled
+    button.Text = enabled and "遠隔掴み：ON" or "遠隔掴み：OFF"
+    button.BackgroundColor3 = enabled and Color3.fromRGB(255, 0, 255) or Color3.fromRGB(100, 0, 150)
+end)
+
+-- クリックした時に実行
+mouse.Button1Down:Connect(function()
+    if enabled then
+        remoteGrab()
     end
 end)
