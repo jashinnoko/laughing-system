@@ -2,50 +2,57 @@ local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local isTransparent = false
 
--- 通知を出す（読み込み成功の確認）
+-- 通知
 game:GetService("StarterGui"):SetCore("SendNotification", {
-    Title = "読み込み成功！",
-    Text = "透明化スクリプトが有効です",
+    Title = "R6/R15 両対応！",
+    Text = "透明化スクリプト読み込み完了",
     Duration = 5
 })
 
--- 透明化を切り替える関数
+-- 透明化を切り替える関数（R6/R15/アクセサリー対応）
 local function toggleTransparency()
     isTransparent = not isTransparent
-    local transparencyValue = isTransparent and 1 or 0
+    local targetTransparency = isTransparent and 1 or 0
     
-    -- キャラクターのパーツを全部探して透明度を変える
-    for _, part in pairs(character:GetDescendants()) do
-        if part:IsA("BasePart") or part:IsA("Decal") then
-            -- 「HumanoidRootPart」だけは透明なままでないと変になるので除外
-            if part.Name ~= "HumanoidRootPart" then
-                part.Transparency = transparencyValue
+    -- キャラクター内の全オブジェクトをループ
+    for _, obj in pairs(character:GetDescendants()) do
+        -- パーツ(BasePart)か、顔などのステッカー(Decal)なら透明にする
+        if obj:IsA("BasePart") or obj:IsA("Decal") then
+            -- ルートパーツ（移動の基準点）だけは0.1くらい残さないとバグることがあるので除外
+            if obj.Name ~= "HumanoidRootPart" then
+                obj.Transparency = targetTransparency
             end
         end
     end
 end
 
--- 画面にボタンを作成する
+-- UI作成（既存のUIがあれば消してから作成）
+if game.CoreGui:FindFirstChild("TransparentGui") then
+    game.CoreGui.TransparentGui:Destroy()
+end
+
 local screenGui = Instance.new("ScreenGui")
-local button = Instance.new("TextButton")
-
+screenGui.Name = "TransparentGui"
 screenGui.Parent = game.CoreGui
-button.Parent = screenGui
-button.Size = UDim2.new(0, 150, 0, 50)
-button.Position = UDim2.new(0.1, 0, 0.5, 0) -- 画面左側の中央付近
-button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-button.TextColor3 = Color3.fromRGB(255, 255, 255)
-button.Text = "透明化：OFF"
-button.Draggable = true -- ボタンを指で動かせるようにする
 
--- ボタンを押した時の動作
+local button = Instance.new("TextButton")
+button.Parent = screenGui
+button.Size = UDim2.new(0, 140, 0, 45)
+button.Position = UDim2.new(0.05, 0, 0.4, 0)
+button.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+button.BorderSizePixel = 2
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.TextSize = 18
+button.Text = "透明化: OFF"
+button.Draggable = true -- 好きな場所に動かせます
+
 button.MouseButton1Click:Connect(function()
     toggleTransparency()
     if isTransparent then
-        button.Text = "透明化：ON"
-        button.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+        button.Text = "透明化: ON"
+        button.BackgroundColor3 = Color3.fromRGB(0, 150, 255) -- ONの時は青っぽく
     else
-        button.Text = "透明化：OFF"
-        button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        button.Text = "透明化: OFF"
+        button.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     end
 end)
