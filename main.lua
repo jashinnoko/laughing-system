@@ -1,31 +1,71 @@
 local player = game.Players.LocalPlayer
-local char = player.Character or player.CharacterAdded:Wait()
-local isTransparent = false
+local runService = game:GetService("RunService")
+local noclipEnabled = false
+local noclipConnection
 
 -- 通知
 game:GetService("StarterGui"):SetCore("SendNotification", {
-    Title = "隠密モード強化",
-    Text = "名前と影の削除を試みます",
+    Title = "壁すり抜けシステム",
+    Text = "準備完了！ボタンで切り替えてください",
     Duration = 5
 })
 
-local function applyInvisibility()
-    local c = player.Character
-    if c and isTransparent then
-        for _, obj in pairs(c:GetDescendants()) do
-            -- パーツとデカールを透明に
-            if obj:IsA("BasePart") then
-                obj.Transparency = 1
-                obj.CastShadow = false -- 影を消す
-            elseif obj:IsA("Decal") then
-                obj.Transparency = 1
-            -- 名前タグ（Humanoid）の設定を変更して名前を隠す
-            elseif obj:IsA("Humanoid") then
-                obj.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+-- 壁すり抜けを実行する関数
+local function doNoclip()
+    local char = player.Character
+    if char and noclipEnabled then
+        for _, part in pairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false -- 当たり判定をオフにする
             end
         end
     end
 end
 
--- 以下、前回のUI作成コードと同じ（省略せずにGitHubに貼ってください）
--- ... (前回のUIとRenderSteppedのループ部分)
+-- UI作成
+if game.CoreGui:FindFirstChild("NoclipGui") then
+    game.CoreGui.NoclipGui:Destroy()
+end
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "NoclipGui"
+screenGui.Parent = game.CoreGui
+
+local button = Instance.new("TextButton")
+button.Parent = screenGui
+button.Size = UDim2.new(0, 140, 0, 45)
+button.Position = UDim2.new(0.05, 0, 0.3, 0) -- 透明化ボタンより少し上に配置
+button.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+button.BorderSizePixel = 2
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.Text = "壁抜け: OFF"
+button.Draggable = true
+
+-- ボタンクリック時の処理
+button.MouseButton1Click:Connect(function()
+    noclipEnabled = not noclipEnabled
+    
+    if noclipEnabled then
+        button.Text = "壁抜け: ON"
+        button.BackgroundColor3 = Color3.fromRGB(0, 180, 0) -- ONは緑
+        -- 常に判定をオフにし続けるループを開始
+        noclipConnection = runService.Stepped:Connect(doNoclip)
+    else
+        button.Text = "壁抜け: OFF"
+        button.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        -- ループを止める
+        if noclipConnection then
+            noclipConnection:Disconnect()
+            noclipConnection = nil
+        end
+        -- 当たり判定を元に戻す（リセット用）
+        local char = player.Character
+        if char then
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = true
+                end
+            end
+        end
+    end
+end)
