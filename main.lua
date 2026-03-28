@@ -9,33 +9,30 @@ local FOV_COLOR = Color3.fromRGB(255, 0, 0) -- 捕捉なしは赤
 local TARGET_COLOR = Color3.fromRGB(0, 255, 0) -- 捕捉したら緑
 
 -- --- UI削除 ---
-if game.CoreGui:FindFirstChild("AdminAimsV12") then
-    game.CoreGui.AdminAimsV12:Destroy()
+if game.CoreGui:FindFirstChild("AdminAimsV13") then
+    game.CoreGui.AdminAimsV13:Destroy()
 end
 
 local screenGui = Instance.new("ScreenGui", game.CoreGui)
-screenGui.Name = "AdminAimsV12"
+screenGui.Name = "AdminAimsV13"
 
--- FOV円（見た目・【修正】元の円に戻す）
+-- FOV円（見た目・中央固定）
 local fovCircle = Instance.new("Frame", screenGui)
 fovCircle.Name = "FOVCircle"
 fovCircle.Size = UDim2.new(0, FOV_RADIUS * 2, 0, FOV_RADIUS * 2)
--- 【修正】画面の中央（0.5, 0.5）に完全に固定
 fovCircle.Position = UDim2.new(0.5, 0, 0.5, -18) -- トップバーのズレ補正
 fovCircle.AnchorPoint = Vector2.new(0.5, 0.5)
 fovCircle.BackgroundTransparency = 1
 fovCircle.Visible = false
 
--- 角を丸くするパーツ
 local uiCorner = Instance.new("UICorner", fovCircle)
 uiCorner.CornerRadius = UDim.new(1, 0)
 
--- 枠線を描くパーツ
 local uiStroke = Instance.new("UIStroke", fovCircle)
 uiStroke.Color = FOV_COLOR
 uiStroke.Thickness = 2
 
--- 【修正】ターゲット捕捉時の赤い線（ESP/DrawingAPIを復活）
+-- ターゲット捕捉時の赤い線（ESP/DrawingAPIを使用）
 local tracer = Drawing.new("Line")
 tracer.Visible = false
 tracer.Thickness = 1.5
@@ -46,7 +43,7 @@ tracer.Transparency = 1
 local button = Instance.new("TextButton", screenGui)
 button.Size = UDim2.new(0, 150, 0, 45)
 button.Position = UDim2.new(0.05, 0, 0.1, 0)
-button.Text = "Silent Aim: OFF"
+button.Text = "Aimbot: OFF"
 button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 button.TextColor3 = Color3.fromRGB(255, 255, 255)
 button.Draggable = true
@@ -54,13 +51,36 @@ button.Draggable = true
 local aimEnabled = false
 button.MouseButton1Click:Connect(function()
     aimEnabled = not aimEnabled
-    button.Text = aimEnabled and "Silent Aim: ON" or "Silent Aim: OFF"
+    button.Text = aimEnabled and "Aimbot: ON" or "Aimbot: OFF"
     button.BackgroundColor3 = aimEnabled and Color3.fromRGB(0, 180, 0) or Color3.fromRGB(50, 50, 50)
     fovCircle.Visible = aimEnabled
     tracer.Visible = false -- OFFの時は線を消す
 end)
 
--- --- ターゲット選定（味方除外） ---
+-- --- 壁貫通チェック関数 (Raycasting) ---
+local function isVisible(targetPart)
+    local char = player.Character
+    if not char then return false end
+    
+    -- 自分と相手の座標
+    local startPos = camera.CFrame.Position
+    local endPos = targetPart.Position
+    
+    -- レイ（光線）を作成
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterDescendantsInstances = {char} -- 自分自身は無視
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    
+    local raycastResult = workspace:Raycast(startPos, (endPos - startPos), raycastParams)
+    
+    -- もし何にもぶつからなかった、あるいはぶつかった相手がターゲット自身なら「見える」
+    if not raycastResult or raycastResult.Instance:IsDescendantOf(targetPart.Parent) then
+        return true
+    end
+    return false -- 壁がある
+end
+
+-- --- ターゲット選定（味方除外・壁チェック付き） ---
 local function getClosestPlayer()
     local target = nil
     local dist = FOV_RADIUS
@@ -69,11 +89,15 @@ local function getClosestPlayer()
         -- 自分以外 且つ 同じチームではない 且つ キャラクターが存在する 且つ 頭が存在する
         if p ~= player and p.Team ~= player.Team and p.Character and p.Character:FindFirstChild("Head") and p.Character:FindFirstChild("HumanoidRootPart") then
             -- 敵の座標を画面上の座標に変換
-            local pos, onScreen = camera:WorldToViewportPoint(p.Character.HumanoidRootPart.Position)
+            local head = p.Character.Head
+            local pos, onScreen = camera:WorldToViewportPoint(head.Position)
+            
             if onScreen then
                 -- 画面中央からの距離を計算
                 local magnitude = (Vector2.new(pos.X, pos.Y) - camera.ViewportSize / 2).Magnitude
-                if magnitude < dist then
+                
+                -- 円の中にいて、且つ【重要】壁に隠れていない場合のみターゲットにする
+                if magnitude < dist and isVisible(head) then
                     target = p
                     dist = magnitude
                 end
@@ -96,11 +120,11 @@ runService.RenderStepped:Connect(function()
             -- 円の色を緑に
             uiStroke.Color = TARGET_COLOR
             
-            -- 【追加】カメラを敵の頭に強制固定（倒すまで外さないハードエイム）
+            -- カメラを敵の頭に強制固定（ハードエイム）
             local targetHeadPos = target.Character.Head.Position
             camera.CFrame = CFrame.new(camera.CFrame.Position, targetHeadPos)
             
-            -- 【修正】赤い線を表示
+            -- 赤い線を表示
             -- 線のスタート：ターゲットの頭を画面上の座標に変換
             local headPos, headOnScreen = camera:WorldToViewportPoint(target.Character.Head.Position)
             -- 線のエンド：あなたの本体（芯）を画面上の座標に変換
@@ -114,7 +138,7 @@ runService.RenderStepped:Connect(function()
                 tracer.Visible = false
             end
         else
-            -- 捕捉なし
+            -- 捕捉なし（壁に隠れた場合もここに来る）
             uiStroke.Color = FOV_COLOR
             tracer.Visible = false
         end
