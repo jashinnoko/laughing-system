@@ -9,12 +9,12 @@ local FOV_COLOR = Color3.fromRGB(255, 255, 255)
 local LOCK_COLOR = Color3.fromRGB(255, 0, 0)
 
 -- --- UI作成 ---
-if game.CoreGui:FindFirstChild("AdminAimsV17") then
-    game.CoreGui.AdminAimsV17:Destroy()
+if game.CoreGui:FindFirstChild("AdminAimsV16") then
+    game.CoreGui.AdminAimsV16:Destroy()
 end
 
 local screenGui = Instance.new("ScreenGui", game.CoreGui)
-screenGui.Name = "AdminAimsV17"
+screenGui.Name = "AdminAimsV16"
 
 -- FOV円
 local fovCircle = Instance.new("Frame", screenGui)
@@ -28,74 +28,64 @@ local uiStroke = Instance.new("UIStroke", fovCircle)
 uiStroke.Color = FOV_COLOR
 uiStroke.Thickness = 1
 
--- ボタン1: Target Lock (壁貫通ロック)
+-- ボタン: Target Lock (壁貫通ロック切り替え)
 local btnLock = Instance.new("TextButton", screenGui)
-btnLock.Size = UDim2.new(0, 160, 0, 40)
+btnLock.Size = UDim2.new(0, 160, 0, 45)
 btnLock.Position = UDim2.new(0.05, 0, 0.1, 0)
-btnLock.Text = "Target Lock: OFF"
+btnLock.Text = "Target Lock: OFF\n(Visual Only)"
 btnLock.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 btnLock.TextColor3 = Color3.fromRGB(255, 255, 255)
 btnLock.Draggable = true
 
--- ボタン2: Rapid Fire (高速連射) 【新設】
-local btnRapid = Instance.new("TextButton", screenGui)
-btnRapid.Size = UDim2.new(0, 160, 0, 40)
-btnRapid.Position = UDim2.new(0.05, 0, 0.16, 0)
-btnRapid.Text = "Rapid Fire: OFF"
-btnRapid.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-btnRapid.TextColor3 = Color3.fromRGB(255, 255, 255)
-btnRapid.Draggable = true
-
 local lockEnabled = false
-local rapidEnabled = false
 local currentTarget = nil
 
 btnLock.MouseButton1Click:Connect(function()
     lockEnabled = not lockEnabled
-    btnLock.Text = lockEnabled and "Target Lock: ON" or "Target Lock: OFF"
+    btnLock.Text = lockEnabled and "Target Lock: ON\n(Wall Penetrate)" or "Target Lock: OFF\n(Visual Only)"
     btnLock.BackgroundColor3 = lockEnabled and Color3.fromRGB(200, 0, 0) or Color3.fromRGB(50, 50, 50)
     if not lockEnabled then currentTarget = nil end
 end)
 
-btnRapid.MouseButton1Click:Connect(function()
-    rapidEnabled = not rapidEnabled
-    btnRapid.Text = rapidEnabled and "Rapid Fire: ON" or "Rapid Fire: OFF"
-    btnRapid.BackgroundColor3 = rapidEnabled and Color3.fromRGB(200, 150, 0) or Color3.fromRGB(50, 50, 50)
-end)
-
--- --- 高速連射ロジック ---
--- 多くの武器スクリプトで使われる「Cooldown」「ReloadTime」等の変数を強制書き換え
-task.spawn(function()
-    while task.wait(0.5) do
-        if rapidEnabled then
-            for _, v in pairs(getgc(true)) do
-                if type(v) == "table" then
-                    -- 一般的な武器スクリプトの変数名を狙い撃ち
-                    if v.Cooldown or v.ReloadTime or v.FireRate or v.ShootRate then
-                        v.Cooldown = 0.1
-                        v.ReloadTime = 0.1
-                        v.FireRate = 0.1
-                        v.ShootRate = 0.1
-                    end
-                end
-            end
-        end
-    end
-end)
-
--- --- 壁チェック & ESP 略 (前回のロジックを継続) ---
+-- --- 壁チェック関数 ---
 local function isVisible(part)
     local ray = Ray.new(camera.CFrame.Position, (part.Position - camera.CFrame.Position).Unit * 500)
     local hit = workspace:FindPartOnRayWithIgnoreList(ray, {player.Character})
     return hit and hit:IsDescendantOf(part.Parent)
 end
 
--- --- メインループ ---
+-- --- ESP (敵の可視化) ---
+local function createESP(p)
+    local line = Drawing.new("Line")
+    runService.RenderStepped:Connect(function()
+        if p.Character and p.Character:FindFirstChild("Head") and p ~= player and p.Team ~= player.Team then
+            local headPos, onScreen = camera:WorldToViewportPoint(p.Character.Head.Position)
+            if onScreen then
+                line.Visible = true
+                line.From = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y)
+                line.To = Vector2.new(headPos.X, headPos.Y)
+                line.Color = (currentTarget == p) and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(255, 255, 255)
+                line.Thickness = 1
+            else
+                line.Visible = false
+            end
+        else
+            line.Visible = false
+        end
+    end)
+end
+
+for _, v in pairs(Players:GetPlayers()) do createESP(v) end
+Players.PlayerAdded:Connect(createESP)
+
+-- --- メインロジック ---
 runService.RenderStepped:Connect(function()
+    -- ターゲットが死亡、または存在しない場合は解除
     if currentTarget and (not currentTarget.Character or not currentTarget.Character:FindFirstChild("Humanoid") or currentTarget.Character.Humanoid.Health <= 0) then
         currentTarget = nil
     end
 
+    -- ターゲットを探す処理
     local shortestDist = FOV_RADIUS
     local potentialTarget = nil
 
@@ -103,9 +93,13 @@ runService.RenderStepped:Connect(function()
         if p ~= player and p.Team ~= player.Team and p.Character and p.Character:FindFirstChild("Head") then
             local head = p.Character.Head
             local pos, onScreen = camera:WorldToViewportPoint(head.Position)
+
             if onScreen then
                 local dist = (Vector2.new(pos.X, pos.Y) - camera.ViewportSize / 2).Magnitude
                 if dist < shortestDist then
+                    -- 【修正点】
+                    -- 1. Target LockがONなら、壁に関係なくターゲットにする
+                    -- 2. Target LockがOFFなら、見える(Visible)時だけターゲットにする
                     if lockEnabled or isVisible(head) then
                         potentialTarget = p
                         shortestDist = dist
@@ -115,15 +109,19 @@ runService.RenderStepped:Connect(function()
         end
     end
 
-    if not currentTarget then currentTarget = potentialTarget end
+    -- ターゲットを確定させる（一度ロックしたら、その敵が死ぬまで、または条件から外れるまで優先）
+    if not currentTarget then
+        currentTarget = potentialTarget
+    end
 
+    -- カメラ固定処理
     if currentTarget and currentTarget.Character and currentTarget.Character:FindFirstChild("Head") then
         uiStroke.Color = LOCK_COLOR
+        
+        -- ロックオン実行
         camera.CFrame = CFrame.new(camera.CFrame.Position, currentTarget.Character.Head.Position)
+        
+        -- 【補足】Target LockがOFFの時に壁に隠れたら、ターゲットをリセットする
         if not lockEnabled and not isVisible(currentTarget.Character.Head) then
             currentTarget = nil
         end
-    else
-        uiStroke.Color = FOV_COLOR
-    end
-end)
