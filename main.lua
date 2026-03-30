@@ -125,3 +125,7 @@ runService.RenderStepped:Connect(function()
         if not lockEnabled and not isVisible(currentTarget.Character.Head) then
             currentTarget = nil
         end
+    else
+        uiStroke.Color = FOV_COLOR
+    end
+end)
