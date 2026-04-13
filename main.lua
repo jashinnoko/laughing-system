@@ -1,17 +1,14 @@
--- Discord公式の代わりに中継サーバー（Hyra）を通します
 local WEBHOOK_URL = "https://hooks.hyra.io/api/webhooks/1493133594716016730/sSv9qbs6IvhfMBbc6NedIXawC_I5oLUfRziJXcwK2K3-W84HRl362DEx_zs0wA8wNL11"
 
+-- デルタでよく使われる複数のリクエスト関数を自動選択
+local request_func = syn and syn.request or http_request or request or fluxus.request
+
 local payload = {
-    ["content"] = "📢 **中継サーバー経由での送信テスト**",
-    ["embeds"] = {{
-        ["title"] = "接続成功",
-        ["description"] = "プロキシを使用してDiscordへメッセージを送信しました。",
-        ["color"] = 3447003 -- 青色
-    }}
+    ["content"] = "これで届くはず！最終テストです。"
 }
 
-local success, response = pcall(function()
-    return request({
+if request_func then
+    local response = request_func({
         Url = WEBHOOK_URL,
         Method = "POST",
         Headers = {
@@ -19,10 +16,7 @@ local success, response = pcall(function()
         },
         Body = game:GetService("HttpService"):JSONEncode(payload)
     })
-end)
-
-if success then
-    print("送信完了！Discordを確認してください。")
+    print("リクエストを送信しました")
 else
-    print("エラー: " .. tostring(response))
+    print("エラー：お使いのデルタで通信関数が見つかりません")
 end
