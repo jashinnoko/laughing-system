@@ -1,14 +1,23 @@
--- 対象のプレイヤーを指定（自分自身の場合）
+local StarterGui = game:GetService("StarterGui")
+
+-- 通知を表示する関数
+local function notify(title, text)
+    StarterGui:SetCore("SendNotification", {
+        Title = title;
+        Text = text;
+        Duration = 5;
+    })
+end
+
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
-
--- キャラクターの「胴体」を固定して動けなくする
 local rootPart = character:WaitForChild("HumanoidRootPart")
-rootPart.Anchored = true -- これで物理的に固定される
 
-print("プレイヤーを固定しました！")
+-- 実行
+rootPart.Anchored = true
+notify("スクリプト実行", "プレイヤーを固定しました！")
 
--- 5秒後に解除する
 task.wait(5)
+
 rootPart.Anchored = false
-print("解除しました。")
+notify("スクリプト実行", "固定を解除しました。")
