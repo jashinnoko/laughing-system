@@ -1,4 +1,69 @@
--- --- スライダー作成関数 (修正版) ---
+-- 二重起動防止
+if _G.KumaaHubEnabled then
+    local oldGui = game.CoreGui:FindFirstChild("KumaaHub")
+    if oldGui then oldGui:Destroy() end
+    if _G.SpeedConn then _G.SpeedConn:Disconnect() end
+end
+_G.KumaaHubEnabled = true
+
+local ScreenGui = Instance.new("ScreenGui")
+local MainFrame = Instance.new("Frame")
+local LeftNav = Instance.new("Frame")
+local RightContent = Instance.new("Frame")
+local Title = Instance.new("TextLabel")
+local TabHolder = Instance.new("ScrollingFrame")
+local UIListLayout = Instance.new("UIListLayout")
+
+-- GUI設定
+ScreenGui.Parent = game.CoreGui
+ScreenGui.Name = "KumaaHub"
+ScreenGui.ResetOnSpawn = false
+
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.Position = UDim2.new(0.5, -250, 0.5, -150)
+MainFrame.Size = UDim2.new(0, 500, 0, 350)
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+local UICorner = Instance.new("UICorner", MainFrame)
+UICorner.CornerRadius = UDim.new(0, 8)
+
+-- 左側メニュー設定 (省略せず記述)
+LeftNav.Name = "LeftNav"
+LeftNav.Parent = MainFrame
+LeftNav.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+LeftNav.Size = UDim2.new(0, 150, 1, 0)
+local LeftCorner = Instance.new("UICorner", LeftNav)
+LeftCorner.CornerRadius = UDim.new(0, 8)
+
+Title.Parent = LeftNav
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.Text = "くまあ HUB v1.1"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Font = Enum.Font.SourceSansBold
+Title.TextSize = 18
+Title.BackgroundTransparency = 1
+
+TabHolder.Parent = LeftNav
+TabHolder.Position = UDim2.new(0, 0, 0, 40)
+TabHolder.Size = UDim2.new(1, 0, 1, -45)
+TabHolder.BackgroundTransparency = 1
+TabHolder.CanvasSize = UDim2.new(0, 0, 2, 0)
+TabHolder.ScrollBarThickness = 0
+
+UIListLayout.Parent = TabHolder
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Padding = UDim.new(0, 5)
+
+RightContent.Name = "RightContent"
+RightContent.Parent = MainFrame
+RightContent.Position = UDim2.new(0, 160, 0, 10)
+RightContent.Size = UDim2.new(1, -170, 1, -20)
+RightContent.BackgroundTransparency = 1
+
+-- --- スライダー関数 ---
 local function CreateSlider(parent, text, min, max, default, callback)
     local SliderFrame = Instance.new("Frame", parent)
     SliderFrame.Size = UDim2.new(1, 0, 0, 50)
@@ -10,7 +75,6 @@ local function CreateSlider(parent, text, min, max, default, callback)
     Label.TextColor3 = Color3.fromRGB(255, 255, 255)
     Label.BackgroundTransparency = 1
     Label.TextXAlignment = Enum.TextXAlignment.Left
-    Label.Font = Enum.Font.SourceSans
 
     local Bar = Instance.new("Frame", SliderFrame)
     Bar.Size = UDim2.new(0.9, 0, 0, 5)
@@ -28,45 +92,98 @@ local function CreateSlider(parent, text, min, max, default, callback)
     Button.Position = UDim2.new((default - min) / (max - min), -7, 0.5, -7)
     Button.Text = ""
     Button.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    
-    local BtnCorner = Instance.new("UICorner", Button)
-    BtnCorner.CornerRadius = UDim.new(1, 0) -- 丸くする
+    Instance.new("UICorner", Button).CornerRadius = UDim.new(1, 0)
 
     local dragging = false
-
     local function update(input)
-        -- マウスまたはタッチの位置を正規化 (0から1の間)
-        local inputPos = input.Position.X
-        local barPos = Bar.AbsolutePosition.X
-        local barSize = Bar.AbsoluteSize.X
-        local move = math.clamp((inputPos - barPos) / barSize, 0, 1)
-        
-        Fill.Size = UDim2.new(move, 0, 1, 0)
-        Button.Position = UDim2.new(move, -7, 0.5, -7)
-        
-        local value = math.floor(min + (move * (max - min)))
+        local pos = math.clamp((input.Position.X - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X, 0, 1)
+        Fill.Size = UDim2.new(pos, 0, 1, 0)
+        Button.Position = UDim2.new(pos, -7, 0.5, -7)
+        local value = math.floor(min + (pos * (max - min)))
         Label.Text = text .. ": " .. value
         callback(value)
     end
 
-    -- ボタンだけでなくバー全体で入力を開始できるように修正
     Button.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
         end
     end)
-
-    -- 入力終了を検知
     game:GetService("UserInputService").InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = false
         end
     end)
-
-    -- 入力移動を検知 (タッチ操作にも対応)
     game:GetService("UserInputService").InputChanged:Connect(function(input)
         if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
             update(input)
         end
     end)
 end
+
+-- --- タブ作成 ---
+local function CreateTab(name, contentFunc)
+    local TabBtn = Instance.new("TextButton", TabHolder)
+    TabBtn.Size = UDim2.new(0.9, 0, 0, 35)
+    TabBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    TabBtn.Text = name
+    TabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Instance.new("UICorner", TabBtn)
+
+    TabBtn.MouseButton1Click:Connect(function()
+        for _, child in pairs(RightContent:GetChildren()) do
+            if not child:IsA("UIListLayout") then child:Destroy() end
+        end
+        contentFunc()
+    end)
+end
+
+-- プレイヤー設定
+CreateTab("プレイヤー設定", function()
+    local UIList = Instance.new("UIListLayout", RightContent)
+    UIList.Padding = UDim.new(0, 10)
+
+    CreateSlider(RightContent, "WalkSpeed", 16, 200, 16, function(val)
+        local lp = game.Players.LocalPlayer
+        local function setSpeed()
+            if lp.Character and lp.Character:FindFirstChild("Humanoid") then
+                lp.Character.Humanoid.WalkSpeed = val
+            end
+        end
+        
+        -- 強制上書きループの開始
+        if _G.SpeedConn then _G.SpeedConn:Disconnect() end
+        setSpeed()
+        _G.SpeedConn = lp.Character.Humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(setSpeed)
+        
+        -- キャラクターがリセットされた時用
+        lp.CharacterAdded:Connect(function(char)
+            local hum = char:WaitForChild("Humanoid")
+            if _G.SpeedConn then _G.SpeedConn:Disconnect() end
+            hum.WalkSpeed = val
+            _G.SpeedConn = hum:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+                hum.WalkSpeed = val
+            end)
+        end)
+    end)
+
+    CreateSlider(RightContent, "JumpPower", 50, 300, 50, function(val)
+        local lp = game.Players.LocalPlayer
+        if lp.Character and lp.Character:FindFirstChild("Humanoid") then
+            lp.Character.Humanoid.UseJumpPower = true
+            lp.Character.Humanoid.JumpPower = val
+        end
+    end)
+end)
+
+-- 閉じるボタン
+local CloseBtn = Instance.new("TextButton", MainFrame)
+CloseBtn.Size = UDim2.new(0, 30, 0, 30)
+CloseBtn.Position = UDim2.new(1, -35, 0, 5)
+CloseBtn.Text = "X"
+CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.MouseButton1Click:Connect(function() 
+    if _G.SpeedConn then _G.SpeedConn:Disconnect() end
+    ScreenGui:Destroy() 
+end)
