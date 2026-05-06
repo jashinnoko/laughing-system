@@ -1,10 +1,7 @@
 -- 二重起動防止
-if _G.KumaaHubEnabled then
-    local oldGui = game.CoreGui:FindFirstChild("KumaaHub")
-    if oldGui then oldGui:Destroy() end
-    if _G.SpeedConn then _G.SpeedConn:Disconnect() end
-end
-_G.KumaaHubEnabled = true
+local oldGui = game.CoreGui:FindFirstChild("KumaaHub")
+if oldGui then oldGui:Destroy() end
+if _G.SpeedConn then _G.SpeedConn:Disconnect() end
 
 local ScreenGui = Instance.new("ScreenGui")
 local MainFrame = Instance.new("Frame")
@@ -13,6 +10,26 @@ local RightContent = Instance.new("Frame")
 local Title = Instance.new("TextLabel")
 local TabHolder = Instance.new("ScrollingFrame")
 local UIListLayout = Instance.new("UIListLayout")
+
+-- Openボタン（画像1イメージ）の作成
+local OpenBtn = Instance.new("TextButton")
+OpenBtn.Name = "OpenButton"
+OpenBtn.Parent = ScreenGui
+OpenBtn.Visible = false -- 最初は隠しておく
+OpenBtn.Size = UDim2.new(0, 60, 0, 60)
+OpenBtn.Position = UDim2.new(0, 10, 0.5, -30)
+OpenBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+OpenBtn.Text = "Open"
+OpenBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+OpenBtn.Font = Enum.Font.SourceSansBold
+OpenBtn.TextSize = 18
+
+-- ボタンを円形にする
+local OpenCorner = Instance.new("UICorner", OpenBtn)
+OpenCorner.CornerRadius = UDim.new(1, 0)
+local OpenStroke = Instance.new("UIStroke", OpenBtn)
+OpenStroke.Color = Color3.fromRGB(255, 255, 255)
+OpenStroke.Thickness = 2
 
 -- GUI設定
 ScreenGui.Parent = game.CoreGui
@@ -30,7 +47,7 @@ MainFrame.Draggable = true
 local UICorner = Instance.new("UICorner", MainFrame)
 UICorner.CornerRadius = UDim.new(0, 8)
 
--- 左側メニュー設定 (省略せず記述)
+-- 左側メニュー設定
 LeftNav.Name = "LeftNav"
 LeftNav.Parent = MainFrame
 LeftNav.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
@@ -150,21 +167,9 @@ CreateTab("プレイヤー設定", function()
                 lp.Character.Humanoid.WalkSpeed = val
             end
         end
-        
-        -- 強制上書きループの開始
         if _G.SpeedConn then _G.SpeedConn:Disconnect() end
         setSpeed()
         _G.SpeedConn = lp.Character.Humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(setSpeed)
-        
-        -- キャラクターがリセットされた時用
-        lp.CharacterAdded:Connect(function(char)
-            local hum = char:WaitForChild("Humanoid")
-            if _G.SpeedConn then _G.SpeedConn:Disconnect() end
-            hum.WalkSpeed = val
-            _G.SpeedConn = hum:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
-                hum.WalkSpeed = val
-            end)
-        end)
     end)
 
     CreateSlider(RightContent, "JumpPower", 50, 300, 50, function(val)
@@ -176,14 +181,39 @@ CreateTab("プレイヤー設定", function()
     end)
 end)
 
--- 閉じるボタン
+-- --- 最小化・閉じるボタンの処理 ---
+
+-- Openボタンを押したとき
+OpenBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = true
+    OpenBtn.Visible = false
+end)
+
+-- 最小化ボタン（＋）
+local MinimizeBtn = Instance.new("TextButton", MainFrame)
+MinimizeBtn.Size = UDim2.new(0, 30, 0, 30)
+MinimizeBtn.Position = UDim2.new(1, -70, 0, 5)
+MinimizeBtn.Text = "+"
+MinimizeBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+Instance.new("UICorner", MinimizeBtn)
+
+MinimizeBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+    OpenBtn.Visible = true
+end)
+
+-- 閉じるボタン（×）
 local CloseBtn = Instance.new("TextButton", MainFrame)
 CloseBtn.Size = UDim2.new(0, 30, 0, 30)
 CloseBtn.Position = UDim2.new(1, -35, 0, 5)
 CloseBtn.Text = "X"
 CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
 CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseBtn.MouseButton1Click:Connect(function() 
-    if _G.SpeedConn then _G.SpeedConn:Disconnect() end
-    ScreenGui:Destroy() 
+Instance.new("UICorner", CloseBtn)
+
+-- 終了させずに隠すだけにする
+CloseBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+    OpenBtn.Visible = true
 end)
