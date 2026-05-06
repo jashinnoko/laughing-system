@@ -5,14 +5,31 @@ if _G.SpeedConn then _G.SpeedConn:Disconnect() end
 
 local ScreenGui = Instance.new("ScreenGui")
 local MainFrame = Instance.new("Frame")
-local MiniFrame = Instance.new("Frame") -- 最小化時のバー
+local MiniFrame = Instance.new("Frame")
+local OpenBtn = Instance.new("TextButton")
 
 -- GUI設定
 ScreenGui.Parent = game.CoreGui
 ScreenGui.Name = "KumaaHub"
 ScreenGui.ResetOnSpawn = false
 
--- --- 1. メイン画面 (通常時) ---
+-- --- 1. Openボタン (復活) ---
+OpenBtn.Name = "OpenButton"
+OpenBtn.Parent = ScreenGui
+OpenBtn.Visible = false -- 最初は隠しておく
+OpenBtn.Size = UDim2.new(0, 60, 0, 60)
+OpenBtn.Position = UDim2.new(0, 10, 0.5, -30)
+OpenBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+OpenBtn.Text = "Open"
+OpenBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+OpenBtn.Font = Enum.Font.SourceSansBold
+OpenBtn.TextSize = 18
+Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(1, 0)
+local OpenStroke = Instance.new("UIStroke", OpenBtn)
+OpenStroke.Color = Color3.fromRGB(255, 255, 255)
+OpenStroke.Thickness = 2
+
+-- --- 2. メイン画面 ---
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
@@ -22,7 +39,6 @@ MainFrame.Active = true
 MainFrame.Draggable = true
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
 
--- 左側メニュー・コンテンツエリアなどは共通
 local LeftNav = Instance.new("Frame", MainFrame)
 LeftNav.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 LeftNav.Size = UDim2.new(0, 150, 1, 0)
@@ -41,16 +57,7 @@ RightContent.Position = UDim2.new(0, 160, 0, 10)
 RightContent.Size = UDim2.new(1, -170, 1, -20)
 RightContent.BackgroundTransparency = 1
 
--- 最小化ボタン (ー) 
-local MinimizeBtn = Instance.new("TextButton", MainFrame)
-MinimizeBtn.Size = UDim2.new(0, 30, 0, 30)
-MinimizeBtn.Position = UDim2.new(1, -70, 0, 5)
-MinimizeBtn.Text = "-"
-MinimizeBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-Instance.new("UICorner", MinimizeBtn)
-
--- --- 2. 最小化バー (画像2のイメージ) ---
+-- --- 3. 最小化バー ---
 MiniFrame.Name = "MiniFrame"
 MiniFrame.Parent = ScreenGui
 MiniFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
@@ -71,7 +78,7 @@ MiniTitle.TextSize = 20
 MiniTitle.TextXAlignment = Enum.TextXAlignment.Left
 MiniTitle.BackgroundTransparency = 1
 
--- FPS更新処理
+-- FPS更新
 spawn(function()
     local RunService = game:GetService("RunService")
     while wait(1) do
@@ -84,12 +91,10 @@ local MiniButtons = Instance.new("Frame", MiniFrame)
 MiniButtons.Size = UDim2.new(0, 80, 0, 35)
 MiniButtons.Position = UDim2.new(1, -90, 0.5, -17)
 MiniButtons.BackgroundTransparency = 1
-
 local MiniLayout = Instance.new("UIListLayout", MiniButtons)
 MiniLayout.FillDirection = Enum.FillDirection.Horizontal
 MiniLayout.Padding = UDim.new(0, 5)
 
--- 元に戻すボタン (+)
 local MaximizeBtn = Instance.new("TextButton", MiniButtons)
 MaximizeBtn.Size = UDim2.new(0, 35, 0, 35)
 MaximizeBtn.Text = "+"
@@ -97,7 +102,6 @@ MaximizeBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 MaximizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 Instance.new("UICorner", MaximizeBtn)
 
--- 最小化バー側の閉じるボタン (X)
 local MiniCloseBtn = Instance.new("TextButton", MiniButtons)
 MiniCloseBtn.Size = UDim2.new(0, 35, 0, 35)
 MiniCloseBtn.Text = "X"
@@ -105,26 +109,34 @@ MiniCloseBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
 MiniCloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 Instance.new("UICorner", MiniCloseBtn)
 
--- --- 3. ロジック ---
+-- --- 4. ロジック設定 ---
+OpenBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = true
+    OpenBtn.Visible = false
+end)
 
--- メインのーボタン：メインを隠してバーを出す
-MinimizeBtn.MouseButton1Click:Connect(function()
+local MainMinimizeBtn = Instance.new("TextButton", MainFrame)
+MainMinimizeBtn.Size = UDim2.new(0, 30, 0, 30)
+MainMinimizeBtn.Position = UDim2.new(1, -70, 0, 5)
+MainMinimizeBtn.Text = "-"
+MainMinimizeBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+MainMinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+Instance.new("UICorner", MainMinimizeBtn)
+
+MainMinimizeBtn.MouseButton1Click:Connect(function()
     MainFrame.Visible = false
     MiniFrame.Visible = true
 end)
 
--- バーの＋ボタン：バーを隠してメインを出す
 MaximizeBtn.MouseButton1Click:Connect(function()
     MiniFrame.Visible = false
     MainFrame.Visible = true
 end)
 
--- 閉じるボタン（メインとバー両方）
-local function CloseUI()
+local function CloseAll()
     MainFrame.Visible = false
     MiniFrame.Visible = false
-    -- ここにOpenボタンを出す処理を入れるなら以下を有効化
-    -- OpenBtn.Visible = true 
+    OpenBtn.Visible = true
 end
 
 local MainCloseBtn = Instance.new("TextButton", MainFrame)
@@ -135,20 +147,19 @@ MainCloseBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
 MainCloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 Instance.new("UICorner", MainCloseBtn)
 
-MainCloseBtn.MouseButton1Click:Connect(CloseUI)
-MiniCloseBtn.MouseButton1Click:Connect(CloseUI)
+MainCloseBtn.MouseButton1Click:Connect(CloseAll)
+MiniCloseBtn.MouseButton1Click:Connect(CloseAll)
 
--- --- 以降、以前のスライダー・タブ作成関数をここに貼り付け ---
+-- --- 5. 機能用関数 ---
 
+-- タブ・スライダー作成
 local TabHolder = Instance.new("ScrollingFrame", LeftNav)
 TabHolder.Position = UDim2.new(0, 0, 0, 40)
 TabHolder.Size = UDim2.new(1, 0, 1, -45)
 TabHolder.BackgroundTransparency = 1
 TabHolder.CanvasSize = UDim2.new(0, 0, 2, 0)
 TabHolder.ScrollBarThickness = 0
-local UIListLayout = Instance.new("UIListLayout", TabHolder)
-UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-UIListLayout.Padding = UDim.new(0, 5)
+Instance.new("UIListLayout", TabHolder).Padding = UDim.new(0, 5)
 
 local function CreateSlider(parent, text, min, max, default, callback)
     local SliderFrame = Instance.new("Frame", parent)
@@ -193,6 +204,36 @@ local function CreateSlider(parent, text, min, max, default, callback)
     end)
 end
 
+local function CreateToggle(parent, text, default, callback)
+    local ToggleFrame = Instance.new("Frame", parent)
+    ToggleFrame.Size = UDim2.new(1, 0, 0, 40)
+    ToggleFrame.BackgroundTransparency = 1
+    
+    local Label = Instance.new("TextLabel", ToggleFrame)
+    Label.Size = UDim2.new(0.7, 0, 1, 0)
+    Label.Text = text
+    Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Label.BackgroundTransparency = 1
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.TextSize = 16
+
+    local Button = Instance.new("TextButton", ToggleFrame)
+    Button.Size = UDim2.new(0, 50, 0, 25)
+    Button.Position = UDim2.new(1, -55, 0.5, -12)
+    Button.Text = default and "ON" or "OFF"
+    Button.BackgroundColor3 = default and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(100, 100, 100)
+    Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Instance.new("UICorner", Button)
+
+    local state = default
+    Button.MouseButton1Click:Connect(function()
+        state = not state
+        Button.Text = state and "ON" or "OFF"
+        Button.BackgroundColor3 = state and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(100, 100, 100)
+        callback(state)
+    end)
+end
+
 local function CreateTab(name, contentFunc)
     local TabBtn = Instance.new("TextButton", TabHolder)
     TabBtn.Size = UDim2.new(0.9, 0, 0, 35)
@@ -206,16 +247,34 @@ local function CreateTab(name, contentFunc)
     end)
 end
 
+-- 空中ジャンプ用変数
+_G.InfJump = false
+game:GetService("UserInputService").JumpRequest:Connect(function()
+    if _G.InfJump then
+        game.Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
+    end
+end)
+
+-- 初期タブ作成
 CreateTab("プレイヤー設定", function()
     local UIList = Instance.new("UIListLayout", RightContent)
     UIList.Padding = UDim.new(0, 10)
+    
+    -- 空中ジャンプ
+    CreateToggle(RightContent, "空中ジャンプ", _G.InfJump, function(state)
+        _G.InfJump = state
+    end)
+
+    -- スピード
     CreateSlider(RightContent, "WalkSpeed", 16, 200, 16, function(val)
         local lp = game.Players.LocalPlayer
-        local function setSpeed() if lp.Character and lp.Character:FindFirstChild("Humanoid") then lp.Character.Humanoid.WalkSpeed = val end end
+        local function set() if lp.Character and lp.Character:FindFirstChild("Humanoid") then lp.Character.Humanoid.WalkSpeed = val end end
         if _G.SpeedConn then _G.SpeedConn:Disconnect() end
-        setSpeed()
-        _G.SpeedConn = lp.Character.Humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(setSpeed)
+        set()
+        _G.SpeedConn = lp.Character.Humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(set)
     end)
+
+    -- ジャンプ力
     CreateSlider(RightContent, "JumpPower", 50, 300, 50, function(val)
         local lp = game.Players.LocalPlayer
         if lp.Character and lp.Character:FindFirstChild("Humanoid") then
